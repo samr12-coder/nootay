@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محاكاة الحركة الخطية المتقدمة</title>
+    <style>
+        body {
+            font-family: 'Verdana', sans-serif;
+            text-align: center;
+            background-color: #f0f8ff;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            color: #333;
+            margin: 20px 0;
+            font-size: 36px;
+        }
+        .container {
+            margin: 20px auto;
+            max-width: 800px;
+        }
+        .controls {
+            margin-top: 20px;
+        }
+        .slider-container {
+            margin: 10px 0;
+        }
+        input[type="range"] {
+            width: 100%;
+            padding: 10px;
+        }
+        p {
+            font-size: 18px;
+            margin: 5px 0;
+        }
+        canvas {
+            margin-top: 20px;
+            border: 2px solid #333;
+            background-color: #fff;
+        }
+        .slider-text {
+            font-size: 18px;
+            margin: 5px 0;
+        }
+        .status {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+        }
+        .achievement {
+            margin-top: 10px;
+            font-size: 20px;
+            color: green;
+            font-weight: bold;
+        }
+        .instructions {
+            font-size: 18px;
+            color: #333;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>محاكاة الحركة الخطية المتقدمة</h1>
+    <div class="container">
+        <p>التسارع: <span id="accelerationValue">0</span> م/ث²</p>
+        <div class="slider-container">
+            <input type="range" id="acceleration" min="-5" max="5" step="0.1" value="0">
+        </div>
+
+        <p>السرعة الابتدائية: <span id="initialSpeedValue">0</span> م/ث</p>
+        <div class="slider-container">
+            <input type="range" id="initialSpeed" min="-10" max="10" step="0.1" value="0">
+        </div>
+
+        <p>السرعة النهائية: <span id="finalSpeedValue">0</span> م/ث</p>
+        <div class="slider-container">
+            <input type="range" id="finalSpeed" min="-50" max="50" step="0.1" value="0" disabled>
+        </div>
+
+        <div class="controls">
+            <button onclick="startSimulation()">ابدأ المحاكاة</button>
+            <button onclick="stopSimulation()">إيقاف المحاكاة</button>
+        </div>
+
+        <div class="status">
+            <p id="speedStatus">السرعة الحالية: 0 م/ث</p>
+            <p id="positionStatus">الموقع الحالي: 0 متر</p>
+            <p id="achievementStatus" class="achievement"></p>
+        </div>
+
+        <div class="instructions">
+            <p>إرشادات اللعبة:</p>
+            <ul>
+                <li>حاول الوصول إلى تسارع 5 م/ث² لتحقيق إنجاز.</li>
+                <li>تجنب الاصطدام بالعقبات المتغيرة في كل مرة تبدأ فيها المحاكاة.</li>
+                <li>استمتع بالتحدي وحاول تحسين أدائك في كل مرة!</li>
+            </ul>
+        </div>
+
+        <canvas id="motionCanvas" width="800" height="400"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('motionCanvas');
+        const ctx = canvas.getContext('2d');
+        const achievementStatus = document.getElementById('achievementStatus');
+        
+        let acceleration = 0;
+        let initialSpeed = 0;
+        let position = 0;
+        let velocity = 0;
+        let time = 0;
+        let isSimulating = false;
+        let obstacles = []; // العقبات المتغيرة
+        let soundEffect = new Audio('https://www.soundjay.com/button/beep-07.wav'); // الصوت
+        let achievement = false;
+
+        // تعديل التسارع
+        document.getElementById('acceleration').addEventListener('input', function() {
+            acceleration = parseFloat(this.value);
+            document.getElementById('accelerationValue').textContent = acceleration.toFixed(1);
+            updateFinalSpeed();
+        });
+
+        // تعديل السرعة الابتدائية
+        document.getElementById('initialSpeed').addEventListener('input', function() {
+            initialSpeed = parseFloat(this.value);
+            document.getElementById('initialSpeedValue').textContent = initialSpeed.toFixed(1);
+            updateFinalSpeed();
+        });
+
+        function updateFinalSpeed() {
+            const finalSpeed = (initialSpeed + acceleration * 10).toFixed(1);
+            document.getElementById('finalSpeedValue').textContent = finalSpeed;
+        }
+
+        // وظيفة لبدء المحاكاة
+        function startSimulation() {
+            position = 0;
+            velocity = initialSpeed;
+            time = 0;
+            isSimulating = true;
+            achievement = false;
+            obstacles = generateRandomObstacles(); // تحريك العقبات عشوائيًا
+            soundEffect.play();
+            achievementStatus.textContent = '';
+            animate();
+        }
+
+        // وظيفة لإيقاف المحاكاة
+        function stopSimulation() {
+            isSimulating = false;
+        }
+
+        // إنشاء العقبات بشكل عشوائي
+        function generateRandomObstacles() {
+            const newObstacles = [];
+            for (let i = 0; i < 3; i++) {
+                newObstacles.push({
+                    x: Math.random() * (canvas.width - 50) + 50, // العوائق عشوائية
+                    y: Math.random() * (canvas.height - 50) + 150,
+                    width: 30,
+                    height: 30
+                });
+            }
+            return newObstacles;
+        }
+
+        // دالة للتحقق من الاصطدام
+        function checkCollisions() {
+            for (let obstacle of obstacles) {
+                if (position + canvas.width / 2 > obstacle.x && position + canvas.width / 2 < obstacle.x + obstacle.width &&
+                    300 > obstacle.y && 300 < obstacle.y + obstacle.height) {
+                    stopSimulation();
+                    achievementStatus.textContent = 'تم الاصطدام بالعقبة! المحاكاة توقفت.';
+                }
+            }
+        }
+
+        function animate() {
+            if (!isSimulating) return;
+
+            time += 0.1;
+            velocity = initialSpeed + acceleration * time;
+            position = initialSpeed * time + 0.5 * acceleration * time * time;
+
+            // تحقق من الاصطدام
+            checkCollisions();
+
+            const speedFactor = Math.abs(velocity) > 10 ? '#ff6347' : '#87cefa';
+            const sizeFactor = Math.abs(velocity) > 10 ? 30 : 20;
+
+            // تحديث حالة السرعة والموقع
+            document.getElementById('speedStatus').textContent = `السرعة الحالية: ${velocity.toFixed(1)} م/ث`;
+            document.getElementById('positionStatus').textContent = `الموقع الحالي: ${position.toFixed(1)} متر`;
+
+            // إذا تم الوصول إلى إنجاز
+            if (!achievement && acceleration >= 5) {
+                achievement = true;
+                achievementStatus.textContent = 'مبروك! وصلت إلى تسارع 5 م/ث²!';
+            }
+
+            // تغيير الخلفية مع السرعة
+            document.body.style.backgroundColor = velocity > 10 ? '#ffcc00' : '#f0f8ff';
+
+            // رسم الجسم على الكانفاس
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // رسم العقبات العشوائية
+            ctx.fillStyle = '#ff4500';
+            obstacles.forEach(obstacle => {
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            });
+
+            ctx.beginPath();
+            ctx.arc(position + canvas.width / 2, 300, sizeFactor, 0, Math.PI * 2);
+            ctx.fillStyle = speedFactor;
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 300);
+            ctx.lineTo(position + canvas.width / 2, 300);
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            requestAnimationFrame(animate);
+        }
+    </script>
+</body>
+</html>
